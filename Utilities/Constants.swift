@@ -58,6 +58,8 @@ enum Icons {
     static let minusCircleFill = "minus.circle.fill"
     static let arrowClockwise = "arrow.clockwise"
     static let arrowClockwiseCircle = "arrow.clockwise.circle"
+    static let globe = "globe"
+    static let globeFill = "globe.fill"
     
     // Entity Icons
     static let personFill = "person.fill"
@@ -238,6 +240,11 @@ extension DefaultPlaylists {
 // MARK: - Global Event Notifications
 
 extension Notification.Name {
+    static let initialScanStarted = Notification.Name("initialScanStarted")
+    static let checkInitialScanThreshold = Notification.Name("checkInitialScanThreshold")
+    static let initialScanCompleted = Notification.Name("initialScanCompleted")
+    static let foldersAddedToDatabase = Notification.Name("foldersAddedToDatabase")
+
     static let libraryDataDidChange = Notification.Name("LibraryDataDidChange")
     static let goToLibraryFilter = Notification.Name("GoToLibraryFilter")
 
