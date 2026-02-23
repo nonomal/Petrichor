@@ -77,7 +77,10 @@ struct PlayerView: View {
             TrackArtworkInfo(id: track.id, artworkData: track.artworkData)
         }
 
-        return PlayerAlbumArtView(trackInfo: trackArtworkInfo) {
+        return PlayerAlbumArtView(
+            trackInfo: trackArtworkInfo,
+            contextMenuItems: currentTrackContextMenuItems
+        ) {
             if let currentTrack = playbackManager.currentTrack {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("ShowTrackInfo"),
@@ -87,73 +90,15 @@ struct PlayerView: View {
             }
         }
         .equatable()
-        .contextMenu {
-            TrackContextMenuContent(items: currentTrackContextMenuItems)
-        }
     }
 
     private var trackDetails: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Title row with favorite button
-            HStack(alignment: .center, spacing: 8) {
-                Text(playbackManager.currentTrack?.title ?? "")
-                    .font(.system(size: 14, weight: .medium))
-                    .lineLimit(1)
-                    .foregroundColor(.primary)
-                    .truncationMode(.tail)
-                    .help(playbackManager.currentTrack?.title ?? "")
-                    .contextMenu {
-                        TrackContextMenuContent(items: currentTrackContextMenuItems)
-                    }
-
-                favoriteButton
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Artist with marquee
-            MarqueeText(
-                text: playbackManager.currentTrack?.artist ?? "",
-                font: .system(size: 12),
-                color: .secondary
-            )
-            .frame(height: 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contextMenu {
-                TrackContextMenuContent(items: currentTrackContextMenuItems)
-            }
-
-            // Album with marquee
-            MarqueeText(
-                text: playbackManager.currentTrack?.album ?? "",
-                font: .system(size: 11),
-                color: .secondary
-            )
-            .frame(height: 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contextMenu {
-                TrackContextMenuContent(items: currentTrackContextMenuItems)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var favoriteButton: some View {
-        Group {
-            if let track = playbackManager.currentTrack {
-                Button(action: {
-                    playlistManager.toggleFavorite(for: track)
-                }) {
-                    Image(systemName: track.isFavorite ? Icons.starFill : Icons.star)
-                        .font(.system(size: 12))
-                        .foregroundColor(track.isFavorite ? .yellow : .secondary)
-                        .animation(.easeInOut(duration: 0.2), value: track.isFavorite)
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .hoverEffect(scale: 1.15)
-                .help(track.isFavorite ? "Remove from Favorites" : "Add to Favorites")
-            }
-        }
+        PlayerTrackDetailsView(
+            track: playbackManager.currentTrack,
+            contextMenuItems: currentTrackContextMenuItems,
+            playlistManager: playlistManager
+        )
+        .equatable()
     }
 
     // MARK: - Center Section Components
@@ -535,6 +480,91 @@ struct PlayerView: View {
 
 // MARK: - Album Art
 
+struct PlayerTrackDetailsView: View, Equatable {
+    let track: Track?
+    let contextMenuItems: [ContextMenuItem]
+    let playlistManager: PlaylistManager
+
+    static func == (lhs: PlayerTrackDetailsView, rhs: PlayerTrackDetailsView) -> Bool {
+        lhs.track?.id == rhs.track?.id &&
+        lhs.track?.isFavorite == rhs.track?.isFavorite
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Title row with favorite button
+            HStack(alignment: .center, spacing: 8) {
+                Text(track?.title ?? "")
+                    .font(.system(size: 14, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundColor(.primary)
+                    .truncationMode(.tail)
+                    .help(track?.title ?? "")
+                    .contextMenu {
+                        TrackContextMenuContent(items: contextMenuItems)
+                    }
+
+                if let track = track {
+                    FavoriteButtonView(
+                        trackId: track.id,
+                        isFavorite: track.isFavorite
+                    ) { playlistManager.toggleFavorite(for: track) }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Artist with marquee
+            MarqueeText(
+                text: track?.artist ?? "",
+                font: .system(size: 12),
+                color: .secondary
+            )
+            .frame(height: 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contextMenu {
+                TrackContextMenuContent(items: contextMenuItems)
+            }
+
+            // Album with marquee
+            MarqueeText(
+                text: track?.album ?? "",
+                font: .system(size: 11),
+                color: .secondary
+            )
+            .frame(height: 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contextMenu {
+                TrackContextMenuContent(items: contextMenuItems)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct FavoriteButtonView: View, Equatable {
+    let trackId: UUID
+    let isFavorite: Bool
+    let onToggle: () -> Void
+
+    static func == (lhs: FavoriteButtonView, rhs: FavoriteButtonView) -> Bool {
+        lhs.trackId == rhs.trackId &&
+        lhs.isFavorite == rhs.isFavorite
+    }
+
+    var body: some View {
+        Button(action: onToggle) {
+            Image(systemName: isFavorite ? Icons.starFill : Icons.star)
+                .font(.system(size: 12))
+                .foregroundColor(isFavorite ? .yellow : .secondary)
+                .animation(.easeInOut(duration: 0.2), value: isFavorite)
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .hoverEffect(scale: 1.15)
+        .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
+    }
+}
+
 struct TrackArtworkInfo: Equatable {
     let id: UUID
     let artworkData: Data?
@@ -546,6 +576,7 @@ struct TrackArtworkInfo: Equatable {
 
 struct PlayerAlbumArtView: View, Equatable {
     let trackInfo: TrackArtworkInfo?
+    let contextMenuItems: [ContextMenuItem]
     let onTap: (() -> Void)?
 
     static func == (lhs: PlayerAlbumArtView, rhs: PlayerAlbumArtView) -> Bool {
@@ -556,6 +587,9 @@ struct PlayerAlbumArtView: View, Equatable {
         AlbumArtworkImage(trackInfo: trackInfo)
             .onTapGesture {
                 onTap?()
+            }
+            .contextMenu {
+                TrackContextMenuContent(items: contextMenuItems)
             }
     }
 }

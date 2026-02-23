@@ -58,6 +58,8 @@ enum Icons {
     static let minusCircleFill = "minus.circle.fill"
     static let arrowClockwise = "arrow.clockwise"
     static let arrowClockwiseCircle = "arrow.clockwise.circle"
+    static let globe = "globe"
+    static let globeFill = "globe.fill"
     
     // Entity Icons
     static let personFill = "person.fill"
@@ -93,8 +95,8 @@ enum About {
     static let appWiki = "https://github.com/kushalpandya/Petrichor/wiki"
     static let appAcknowledgements = "https://github.com/kushalpandya/Petrichor/blob/main/ACKNOWLEDGEMENTS.md"
     static let sponsor = "https://github.com/sponsors/kushalpandya"
-    static let appVersion = "1.2.3"
-    static let appBuild = "123"
+    static let appVersion = "1.4.0"
+    static let appBuild = "140"
 }
 
 // MARK: - Audio File Formats
@@ -238,6 +240,11 @@ extension DefaultPlaylists {
 // MARK: - Global Event Notifications
 
 extension Notification.Name {
+    static let initialScanStarted = Notification.Name("initialScanStarted")
+    static let checkInitialScanThreshold = Notification.Name("checkInitialScanThreshold")
+    static let initialScanCompleted = Notification.Name("initialScanCompleted")
+    static let foldersAddedToDatabase = Notification.Name("foldersAddedToDatabase")
+
     static let libraryDataDidChange = Notification.Name("LibraryDataDidChange")
     static let goToLibraryFilter = Notification.Name("GoToLibraryFilter")
 
