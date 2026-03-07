@@ -183,7 +183,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var playerControls: some View {
-        if !libraryManager.folders.isEmpty {
+        if libraryManager.shouldShowMainUI {
             Divider()
 
             PlayerView(rightSidebarContent: $rightSidebarContent)
@@ -223,10 +223,10 @@ struct ContentView: View {
                     shouldFocus: shouldFocusSearch
                 )
                 .frame(width: 280)
-                .disabled(libraryManager.folders.isEmpty)
+                .disabled(!libraryManager.shouldShowMainUI)
                 
                 settingsButton
-                    .disabled(libraryManager.folders.isEmpty)
+                    .disabled(!libraryManager.shouldShowMainUI)
             }
         }
     }
@@ -258,7 +258,7 @@ struct ContentView: View {
                 shouldFocus: shouldFocusSearch
             )
             .frame(width: 280)
-            .disabled(libraryManager.folders.isEmpty)
+            .disabled(!libraryManager.shouldShowMainUI)
         }
     }
     
@@ -539,8 +539,8 @@ struct WindowAccessor: NSViewRepresentable {
         DispatchQueue.main.async {
             if let window = view.window {
                 window.delegate = windowDelegate
-                window.identifier = NSUserInterfaceItemIdentifier("MainWindow")
-                window.setFrameAutosaveName("MainWindow")
+                window.identifier = NSUserInterfaceItemIdentifier(WindowIdentifier.mainWindow)
+                window.setFrameAutosaveName(WindowIdentifier.mainWindow)
                 WindowManager.shared.mainWindow = window
                 window.title = ""
                 window.isExcludedFromWindowsMenu = true
