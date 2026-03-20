@@ -11,6 +11,10 @@ import Foundation
 
 class PlaybackManager: NSObject, ObservableObject {
     let playbackProgressState = PlaybackProgressState()
+    
+    private var scrobbleManager: ScrobbleManager? {
+        AppCoordinator.shared?.scrobbleManager
+    }
 
     // MARK: - Published Properties
 
@@ -233,9 +237,15 @@ class PlaybackManager: NSObject, ObservableObject {
     }
     
     func seekTo(time: Double) {
-        audioPlayer.seek(to: time)
-        currentTime = time
-        restoredPosition = time
+        // Clamp seek position to the engine's actual duration to prevent seek
+        // errors when the DB-stored duration differs from the actual track
+        // duration, this happens in edge-cases for MP3, although it is fixed
+        // in MetadataExtractor so hard refresh on library should resolve this.
+        let engineDuration = audioPlayer.duration
+        let clampedTime = engineDuration > 0 ? min(time, engineDuration) : time
+        audioPlayer.seek(to: clampedTime)
+        currentTime = clampedTime
+        restoredPosition = clampedTime
         
         NotificationCenter.default.post(
             name: NSNotification.Name("PlayerDidSeek"),
@@ -296,6 +306,9 @@ class PlaybackManager: NSObject, ObservableObject {
     /// - Parameter preset: The EqualizerPreset to apply
     func applyEQPreset(_ preset: EqualizerPreset) {
         audioPlayer.applyEQPreset(preset)
+        if preset != .flat && !audioPlayer.isEQEnabled() {
+            setEQEnabled(true)
+        }
         UserDefaults.standard.set(preset.rawValue, forKey: "eqPreset")
         Logger.info("Applied EQ preset: \(preset.displayName) via PlaybackManager")
     }
@@ -309,6 +322,9 @@ class PlaybackManager: NSObject, ObservableObject {
         }
         
         audioPlayer.applyEQCustom(gains: gains)
+        if !audioPlayer.isEQEnabled() {
+            setEQEnabled(true)
+        }
         UserDefaults.standard.set(gains, forKey: "customEQGains")
         UserDefaults.standard.set("custom", forKey: "eqPreset")
         Logger.info("Applied custom EQ gains via PlaybackManager")
@@ -361,6 +377,7 @@ class PlaybackManager: NSObject, ObservableObject {
         
         startStateSaveTimer()
         updateNowPlayingInfo()
+        scrobbleManager?.trackStarted(lightweightTrack)
     }
     
     private func startProgressUpdateTimer() {
@@ -494,7 +511,9 @@ extension PlaybackManager: AudioPlayerDelegate {
             
             if stopReason == .eof {
                 self.playlistManager.incrementPlayCount(for: currentTrack)
-                Logger.info("Track completed naturally, updating play count and last played date")
+                self.scrobbleManager?.trackFinished(currentTrack)
+                
+                Logger.info("Track completed naturally, updating play count, last played date, and scrobbling it if configured")
             }
             
             self.currentTime = 0

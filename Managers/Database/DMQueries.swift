@@ -547,13 +547,68 @@ extension DatabaseManager {
     func findTrackByPath(_ path: String) async -> Track? {
         do {
             return try await dbQueue.read { db in
-                try Track
+                if let track = try Track
                     .filter(Track.Columns.path == path)
+                    .fetchOne(db) {
+                    return track
+                }
+                return try Track
+                    .filter(Track.Columns.path.collating(.nocase) == path)
                     .fetchOne(db)
             }
         } catch {
             Logger.error("Failed to query track by path: \(error)")
             return nil
+        }
+    }
+
+    /// Find a track by its file name
+    func findTracksByFilenames(_ filenames: [String]) async -> [String: Track] {
+        do {
+            return try await dbQueue.read { db in
+                let lowercasedFilenames = filenames.map { $0.lowercased() }
+                let tracks = try Track
+                    .filter(lowercasedFilenames.contains(Track.Columns.filename.lowercased))
+                    .fetchAll(db)
+                var result: [String: Track] = [:]
+                var ambiguous: Set<String> = []
+                for track in tracks {
+                    let key = track.url.lastPathComponent.lowercased()
+                    if result[key] == nil {
+                        result[key] = track
+                    } else {
+                        ambiguous.insert(key)
+                    }
+                }
+                for key in ambiguous {
+                    result.removeValue(forKey: key)
+                }
+                return result
+            }
+        } catch {
+            Logger.error("Failed to query tracks by filenames: \(error)")
+            return [:]
+        }
+    }
+
+    func getTrackCountsByFolderPath() -> [String: Int] {
+        do {
+            return try dbQueue.read { db in
+                let paths = try applyDuplicateFilter(Track.all())
+                    .select(Track.Columns.path)
+                    .asRequest(of: String.self)
+                    .fetchAll(db)
+
+                var counts: [String: Int] = [:]
+                for path in paths {
+                    let parentPath = URL(fileURLWithPath: path).deletingLastPathComponent().path
+                    counts[parentPath, default: 0] += 1
+                }
+                return counts
+            }
+        } catch {
+            Logger.error("Failed to get track counts by folder path: \(error)")
+            return [:]
         }
     }
 
